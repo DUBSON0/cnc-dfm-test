@@ -1,0 +1,36 @@
+{
+  "name": "cnc-dfm",
+  "productName": "CNC Manufacturability Ranker",
+  "version": "0.1.0",
+  "description": "Instant DFM analysis for CNC-milled STEP files",
+  "main": "electron/main.js",
+  "license": "MIT",
+  "scripts": {
+    "start": "env -u ELECTRON_RUN_AS_NODE electron .",
+    "smoke": "env -u ELECTRON_RUN_AS_NODE DFM_SMOKE=1 electron . --ozone-platform=headless --enable-unsafe-swiftshader",
+    "dist": "electron-builder --linux AppImage",
+    "dist:dir": "electron-builder --dir"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.billy.cnc-dfm",
+    "files": [
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      { "from": "dfm", "to": "backend/dfm" },
+      { "from": "web", "to": "backend/web" },
+      { "from": "test_parts", "to": "backend/test_parts" },
+      { "from": "server.py", "to": "backend/server.py" },
+      { "from": "requirements.txt", "to": "backend/requirements.txt" }
+    ],
+    "linux": {
+      "target": ["AppImage"],
+      "category": "Engineering"
+    }
+  }
+}

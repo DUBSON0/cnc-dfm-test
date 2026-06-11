@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CNC Manufacturability Ranker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <header>
+    <div class="logo">
+      <span class="logo-mark">DFM</span>
+      <span class="logo-text">CNC Manufacturability Ranker</span>
+    </div>
+    <div id="file-meta"></div>
+    <button id="new-upload" class="ghost-btn hidden">Analyze another part</button>
+  </header>
+
+  <main id="upload-view">
+    <div id="dropzone">
+      <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M12 16V4m0 0L7 9m5-5l5 5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke-linecap="round"/>
+      </svg>
+      <h1>Drop a STEP file to analyze</h1>
+      <p>Get an instant CNC-milling manufacturability score and concrete design-for-manufacturing feedback.</p>
+      <button id="browse-btn">Browse files</button>
+      <input type="file" id="file-input" accept=".step,.stp" hidden />
+      <div class="hint">.step / .stp &middot; up to 100 MB &middot; analyzed locally, nothing leaves your machine</div>
+      <div class="demo-links">No file handy? Try a sample:
+        <a href="#" data-demo="bad_bracket">problem bracket</a> &middot;
+        <a href="#" data-demo="fiddly_widget">fiddly small features</a> &middot;
+        <a href="#" data-demo="good_plate">clean plate</a> &middot;
+        <a href="#" data-demo="open_box">open surface</a> &middot;
+        <a href="#" data-demo="two_bodies">disconnected bodies</a>
+      </div>
+    </div>
+    <div id="loading" class="hidden">
+      <div class="spinner"></div>
+      <div id="loading-text">Parsing B-rep geometry…</div>
+    </div>
+    <div id="upload-error" class="hidden"></div>
+  </main>
+
+  <main id="result-view" class="hidden">
+    <div id="viewer-pane">
+      <div id="viewer"></div>
+      <div id="viewer-legend">
+        <span><i class="sw critical"></i>Critical</span>
+        <span><i class="sw warning"></i>Warning</span>
+        <span><i class="sw info"></i>Info</span>
+        <span><i class="sw ok"></i>OK</span>
+      </div>
+      <button id="clear-highlight" class="ghost-btn hidden">Show all issues</button>
+    </div>
+
+    <aside id="report-pane">
+      <section id="score-card">
+        <div id="score-ring">
+          <svg viewBox="0 0 120 120">
+            <circle class="ring-bg" cx="60" cy="60" r="52" />
+            <circle id="ring-fill" cx="60" cy="60" r="52" />
+          </svg>
+          <div id="score-value">–</div>
+        </div>
+        <div id="score-summary">
+          <div id="score-grade">–</div>
+          <div id="score-caption"></div>
+        </div>
+      </section>
+
+      <section id="changes-card" class="hidden">
+        <h2>Most critical design changes</h2>
+        <p class="changes-sub">Ranked by score impact. Click a change to see it on the model.</p>
+        <div id="changes-list"></div>
+        <button id="changes-more" class="ghost-btn hidden"></button>
+      </section>
+
+      <section id="subscores"></section>
+
+      <section id="stats-card">
+        <h2>Part overview</h2>
+        <div id="stats-grid"></div>
+      </section>
+
+      <section id="findings-card">
+        <h2>DFM feedback <span id="finding-count"></span></h2>
+        <div id="findings-list"></div>
+      </section>
+    </aside>
+  </main>
+
+  <script type="module" src="/static/app.js"></script>
+</body>
+</html>
