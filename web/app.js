@@ -198,6 +198,7 @@ function showResults(data) {
     ["Material removed", s.material_removal_pct != null ? `${s.material_removal_pct}%` : "–"],
     ["Est. setups", data.setup_info.estimated_setups],
     ["Holes", s.num_holes],
+    ["Tapped", s.num_tapped_holes ?? 0],
     ["Faces", s.num_faces],
     ["Bodies", s.num_bodies ?? 1],
     ["Watertight", s.watertight ? "Yes" : `No (${s.free_edges} naked edges)`],

@@ -17,6 +17,7 @@ from dfm.features import (
     InternalCorner,
     NarrowGap,
     SharpConcaveEdge,
+    Thread,
     ThinRegion,
 )
 from dfm.model import FaceInfo, Finding, Severity, SurfaceKind
@@ -40,6 +41,12 @@ TINY_RADIUS_WARN = 1.6  # mm — corner needs a ≤ Ø3.2 mm end mill
 TINY_RADIUS_CRIT = 0.6  # mm — corner needs a ≤ Ø1.2 mm end mill
 
 NARROW_GAP_CRIT = 1.2  # mm
+
+SMALL_THREAD_WARN = 3.0  # mm nominal — M3 and below need fragile taps
+SMALL_THREAD_CRIT = 2.0  # mm nominal — M2 and below, taps snap routinely
+# Thread engagement past this many diameters adds no strength but multiplies
+# tapping time and tap-breakage risk.
+DEEP_THREAD_RATIO = 2.5
 
 
 # ---------------------------------------------------------------------------
@@ -315,6 +322,112 @@ def check_holes(holes: list[Hole]) -> list[Finding]:
 
 
 # ---------------------------------------------------------------------------
+# Threads (tapped holes)
+# ---------------------------------------------------------------------------
+
+def check_threads(threads: list[Thread]) -> list[Finding]:
+    findings = []
+    for t in threads:
+        d = t.nominal_diameter
+        depth = t.thread_depth
+        engagement = depth / d if d > 1e-9 else 0.0
+        kind = "through" if t.through else "blind"
+        had_problem = False
+
+        if d <= SMALL_THREAD_WARN:
+            had_problem = True
+            sev = Severity.CRITICAL if d <= SMALL_THREAD_CRIT else Severity.WARNING
+            findings.append(Finding(
+                rule="small_thread",
+                title=f"Small thread ({t.designation})",
+                severity=sev,
+                detail=(
+                    f"This {kind} hole reads as a {t.designation} thread (Ø{t.tap_drill:.2f} mm "
+                    f"tap drill). Taps at {t.designation} and below are slender, brittle tools: "
+                    "they twist off in the hole at the slightest chip jam or misalignment, and a "
+                    "tap snapped below the surface is a nightmare — hardened tool steel that "
+                    "won't drill out, often scrapping the whole part. Forming these threads "
+                    "needs careful pecking, fresh sharp taps, and frequently thread-cutting "
+                    "fluid by hand"
+                    + (" — below M2 many shops simply decline to tap." if d <= SMALL_THREAD_CRIT else ".")
+                ),
+                suggestion=(
+                    "Use the largest thread the joint allows — going from M3 to M5 roughly "
+                    "triples tap rigidity and all but eliminates breakage. If a small thread is "
+                    "unavoidable, (1) keep the engagement short (1×D is plenty for steel), "
+                    "(2) consider a threaded insert / heli-coil so the tapped feature lives in a "
+                    "larger, more forgiving hole, or (3) move to a self-tapping or press-fit "
+                    "fastener and note it on the drawing."
+                ),
+                action=f"Enlarge the {t.designation} thread to ≥ M4, or use a threaded insert",
+                face_indices=t.hole_face_indices,
+                penalty=(10.0 if d <= SMALL_THREAD_CRIT else 5.0),
+                data={"designation": t.designation, "nominal_mm": d,
+                      "tap_drill_mm": t.tap_drill, "thread_depth_mm": round(depth, 2)},
+            ))
+
+        if engagement > DEEP_THREAD_RATIO:
+            had_problem = True
+            findings.append(Finding(
+                rule="deep_thread",
+                title=f"Excessive thread engagement ({t.designation}, {engagement:.1f}×D)",
+                severity=Severity.WARNING,
+                detail=(
+                    f"This {t.designation} {kind} hole is threaded roughly {depth:.0f} mm deep — "
+                    f"about {engagement:.1f} times the {d:.0f} mm thread diameter. Past ~1.5×D the "
+                    "thread adds no meaningful pull-out strength (the fastener fails in tension "
+                    "first), but every extra diameter of tapping is slow, generates heat, and "
+                    "packs chips that load the tap until it breaks. Deep tapping is one of the "
+                    "most common causes of a snapped tap, and a broken tap deep in a finished "
+                    "part is frequently unrecoverable."
+                ),
+                suggestion=(
+                    f"Specify a thread depth of about {1.5 * d:.0f}–{2.0 * d:.0f} mm (1.5–2×D in "
+                    "aluminum, ~1×D in steel) and let the rest of the bore be clearance-drilled. "
+                    "Call out the thread depth explicitly on the drawing so the shop doesn't tap "
+                    "the full bore by default. If full-length threading is genuinely required, "
+                    "expect a thread-milling operation rather than tapping, and note it."
+                ),
+                action=f"Limit {t.designation} thread depth to ~{2.0 * d:.0f} mm "
+                       "(clearance-drill the remainder)",
+                face_indices=t.hole_face_indices,
+                penalty=min(4.0 + 1.5 * (engagement - DEEP_THREAD_RATIO), 12.0),
+                data={"designation": t.designation, "nominal_mm": d,
+                      "thread_depth_mm": round(depth, 2),
+                      "engagement_ratio": round(engagement, 1)},
+            ))
+
+        if not had_problem:
+            findings.append(Finding(
+                rule="tapped_hole",
+                title=f"Tapped hole detected ({t.designation})",
+                severity=Severity.INFO,
+                detail=(
+                    f"This Ø{t.tap_drill:.2f} mm {kind} bore matches the {t.designation} tap "
+                    f"drill, so it's been read as a tapped hole ({engagement:.1f}×D engagement). "
+                    "Nothing here is a manufacturing problem — this note is to confirm the tool "
+                    "understood the feature as threaded. Two things keep tapped holes cheap and "
+                    "reliable: the thread size and the thread depth, both of which should be "
+                    "stated explicitly rather than left for the shop to infer."
+                ),
+                suggestion=(
+                    f"Add a thread callout (e.g. '{t.designation} ⏚ {1.5 * t.nominal_diameter:.0f}') "
+                    "to the drawing rather than modeling the thread form in CAD — modeled "
+                    "threads bloat the file, confuse CAM, and are ignored on the shop floor. "
+                    "For blind tapped holes, drill 2–3 pitches deeper than the thread so a "
+                    "standard plug tap can form full threads without a bottoming tap."
+                ),
+                action=f"Confirm {t.designation} callout and thread depth on the drawing",
+                face_indices=t.hole_face_indices,
+                penalty=0.0,
+                data={"designation": t.designation, "nominal_mm": d,
+                      "tap_drill_mm": t.tap_drill, "thread_depth_mm": round(depth, 2),
+                      "through": t.through},
+            ))
+    return findings
+
+
+# ---------------------------------------------------------------------------
 # Thin walls / narrow channels
 # ---------------------------------------------------------------------------
 
@@ -577,11 +690,13 @@ def run_all_rules(
     integrity_findings: list[Finding] | None = None,
     narrow_gaps: list[NarrowGap] | None = None,
     sharp_edges: list[SharpConcaveEdge] | None = None,
+    threads: list[Thread] | None = None,
 ) -> list[Finding]:
     findings: list[Finding] = list(integrity_findings or [])
     findings += check_sharp_edges(sharp_edges or [])
     findings += check_internal_corners(corners)
     findings += check_holes(holes)
+    findings += check_threads(threads or [])
     findings += check_thin_regions(thin)
     findings += check_narrow_gaps(narrow_gaps or [])
     findings += check_accessibility(access, infos)

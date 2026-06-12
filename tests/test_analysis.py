@@ -131,6 +131,59 @@ def test_fiddly_standard_hole_not_flagged():
 
 
 # ---------------------------------------------------------------------------
+# threaded_plate: tapped-hole inference from tap-drill diameters
+# ---------------------------------------------------------------------------
+
+def test_threaded_plate_recognizes_three_tapped_holes():
+    report = analyze("threaded_plate")
+    # M6, M3, M8 bores match tap drills; the Ø6 clearance hole must not.
+    assert report["part_stats"]["num_tapped_holes"] == 3
+
+
+def test_threaded_plate_small_thread():
+    report = analyze("threaded_plate")
+    small = find(report, "small_thread")
+    assert len(small) == 1
+    f = small[0]
+    assert f["severity"] == "warning"          # M3 → fragile but not sub-M2
+    assert f["data"]["designation"] == "M3×0.5"
+    assert f["data"]["nominal_mm"] == 3.0
+
+
+def test_threaded_plate_deep_thread():
+    report = analyze("threaded_plate")
+    deep = find(report, "deep_thread")
+    assert len(deep) == 1
+    f = deep[0]
+    assert f["data"]["designation"] == "M8×1.25"
+    assert f["data"]["engagement_ratio"] > 2.5
+
+
+def test_threaded_plate_clean_tapped_hole_is_info():
+    report = analyze("threaded_plate")
+    info = find(report, "tapped_hole")
+    # The well-proportioned M6 hole is recognized but costs nothing.
+    assert any(f["data"]["designation"] == "M6×1" for f in info)
+    assert all(f["severity"] == "info" for f in info)
+
+
+def test_threaded_plate_clearance_hole_not_threaded():
+    report = analyze("threaded_plate")
+    # No recognized thread should sit on the Ø6.0 clearance bore.
+    for f in find(report, "tapped_hole") + find(report, "small_thread") + find(report, "deep_thread"):
+        assert f["data"]["nominal_mm"] in (3.0, 6.0, 8.0)
+        # tap drill of a real thread is never 6.0 (that's the clearance bore dia)
+        assert f["data"].get("tap_drill_mm", 5.0) != 6.0
+
+
+def test_good_plate_holes_not_misread_as_threads():
+    report = analyze("good_plate")
+    # Ø6 clearance holes are not tap drills — keep the clean part clean.
+    assert report["part_stats"]["num_tapped_holes"] == 0
+    assert report["findings"] == []
+
+
+# ---------------------------------------------------------------------------
 # Geometry integrity
 # ---------------------------------------------------------------------------
 

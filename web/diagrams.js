@@ -176,6 +176,74 @@ export const DIAGRAMS = {
     `),
   },
 
+  // ------------------------------------------------------------- threads --
+  small_thread: {
+    caption:
+      "Tap rigidity falls off fast with size: an M2 tap is a brittle wire that snaps at the " +
+      "first chip jam, and a broken tap is hardened steel that can't be drilled out. Go bigger, " +
+      "or thread a larger hole with an insert.",
+    svg: frame("M2 tap — snaps in the hole", "M5+ or a threaded insert", `
+      <rect x="22" y="30" width="110" height="82" fill="${C.mat}" stroke="${C.line}" stroke-width="1.5"/>
+      <rect x="73" y="22" width="4" height="40" fill="${C.tool}" rx="1"/>
+      <rect x="71.5" y="62" width="7" height="26" fill="#0d1117" stroke="${C.bad}" stroke-width="1.1"/>
+      <path d="M75 88 l-5 9 l8 -3 l-6 9" stroke="${C.bad}" stroke-width="1.6" fill="none"/>
+      <text x="95" y="92" ${FONT}>snap</text>
+
+      <rect x="200" y="30" width="110" height="82" fill="${C.mat}" stroke="${C.line}" stroke-width="1.5"/>
+      <rect x="246" y="18" width="18" height="30" fill="${C.tool}" rx="1"/>
+      <rect x="244" y="48" width="22" height="44" fill="#0d1117" stroke="${C.good}" stroke-width="1.3"/>
+      ${Array.from({ length: 5 }, (_, i) =>
+        `<path d="M244 ${54 + i * 8} l22 0" stroke="${C.good}" stroke-width="0.8"/>`
+      ).join("")}
+      <text x="255" y="108" text-anchor="middle" ${FONT}>rigid tap</text>
+    `),
+  },
+
+  deep_thread: {
+    caption:
+      "A fastener strips its threads or breaks in tension by ~1.5×D of engagement — extra thread " +
+      "depth adds no strength but loads the tap with chips until it breaks. Thread shallow, " +
+      "clearance-drill the rest.",
+    svg: frame("threaded full depth — tap overloads", "thread ~1.5×D, clearance below", `
+      <rect x="18" y="32" width="120" height="84" fill="${C.mat}" stroke="${C.line}" stroke-width="1.5"/>
+      <rect x="68" y="32" width="18" height="74" fill="#0d1117" stroke="${C.bad}" stroke-width="1.2"/>
+      ${Array.from({ length: 9 }, (_, i) =>
+        `<path d="M68 ${38 + i * 8} l18 0" stroke="${C.bad}" stroke-width="0.8"/>`
+      ).join("")}
+      <text x="98" y="74" ${FONT}>all tapped</text>
+
+      <rect x="196" y="32" width="120" height="84" fill="${C.mat}" stroke="${C.line}" stroke-width="1.5"/>
+      <rect x="246" y="32" width="18" height="74" fill="#0d1117" stroke="${C.line}" stroke-width="1.2"/>
+      ${Array.from({ length: 3 }, (_, i) =>
+        `<path d="M246 ${38 + i * 8} l18 0" stroke="${C.good}" stroke-width="0.9"/>`
+      ).join("")}
+      <path d="M250 66 l0 38 m4 -38 l0 38 m4 -38 l0 38 m4 -38 l0 38" stroke="${C.text}" stroke-width="0.6"/>
+      <text x="289" y="58" ${FONT}>1.5×D</text>
+      <text x="289" y="92" ${FONT}>clearance</text>
+    `),
+  },
+
+  tapped_hole: {
+    caption:
+      "Recognized as a tapped hole from its tap-drill diameter. Put the thread on the drawing as " +
+      "a callout (size + depth) rather than modeling the thread form — modeled threads bloat the " +
+      "file and are ignored on the shop floor.",
+    svg: frame("modeled thread form — file bloat", "callout: M6 ⏚ 9", `
+      <rect x="22" y="30" width="110" height="82" fill="${C.mat}" stroke="${C.line}" stroke-width="1.5"/>
+      <rect x="60" y="30" width="34" height="62" fill="#0d1117" stroke="${C.bad}" stroke-width="1.1"/>
+      ${Array.from({ length: 7 }, (_, i) =>
+        `<path d="M60 ${36 + i * 8} l34 4" stroke="${C.bad}" stroke-width="0.7"/>`
+      ).join("")}
+      <text x="77" y="106" text-anchor="middle" ${FONT}>helix in CAD</text>
+
+      <rect x="200" y="30" width="110" height="82" fill="${C.mat}" stroke="${C.line}" stroke-width="1.5"/>
+      <rect x="240" y="30" width="30" height="56" fill="#0d1117" stroke="${C.good}" stroke-width="1.3"/>
+      <circle cx="255" cy="58" r="13" fill="none" stroke="${C.good}" stroke-width="1.1" stroke-dasharray="3 2"/>
+      <path d="M255 30 v-10 m0 10 h40" stroke="${C.text}" stroke-width="0.7"/>
+      <text x="300" y="22" text-anchor="middle" ${FONT}>M6 ⏚ 9</text>
+    `),
+  },
+
   // ------------------------------------------------------- walls/channels --
   thin_wall: {
     caption:

@@ -22,6 +22,30 @@ from dfm.model import FaceInfo, SurfaceKind
 FULL_SWEEP = 2.0 * math.pi
 RAY_EPS = 1e-3
 
+# Common ISO metric coarse threads as (nominal diameter, pitch, tap-drill diameter)
+# for ~75% thread engagement. A drilled bore whose diameter matches one of these
+# tap-drill sizes is very likely intended to be tapped — STEP files almost never
+# carry the thread callout itself, so the tap drill is the geometric fingerprint.
+# M1.6 is intentionally omitted: it collides with sub-Ø1.5 micro holes that are
+# far more likely to be tiny clearance/vent holes than threads.
+METRIC_COARSE_THREADS: list[tuple[float, float, float]] = [
+    (2.0, 0.40, 1.60),
+    (2.5, 0.45, 2.05),
+    (3.0, 0.50, 2.50),
+    (3.5, 0.60, 2.90),
+    (4.0, 0.70, 3.30),
+    (5.0, 0.80, 4.20),
+    (6.0, 1.00, 5.00),
+    (8.0, 1.25, 6.80),
+    (10.0, 1.50, 8.50),
+    (12.0, 1.75, 10.20),
+    (14.0, 2.00, 12.00),
+    (16.0, 2.00, 14.00),
+    (20.0, 2.50, 17.50),
+]
+# How close a bore must be to a tap-drill size (mm) to be read as a tapped hole.
+TAP_DRILL_TOL = 0.08
+
 
 # ---------------------------------------------------------------------------
 # Topology helpers
@@ -80,6 +104,20 @@ class Hole:
     axis_dir: np.ndarray
     through: bool = False
     flat_bottom: bool = False
+
+
+@dataclass
+class Thread:
+    """A tapped-hole candidate: a bore whose diameter matches a standard metric
+    tap drill, inferred to be threaded."""
+    hole_face_indices: list[int]
+    nominal_diameter: float   # thread major diameter, e.g. 6.0 for M6
+    pitch: float              # coarse-thread pitch, mm
+    designation: str          # human-readable, e.g. "M6×1.0"
+    tap_drill: float          # matched tap-drill diameter, mm
+    thread_depth: float       # estimated threaded length, mm (bore depth)
+    through: bool = False
+    blind: bool = False
 
 
 @dataclass
@@ -227,6 +265,42 @@ def _classify_hole_ends(
                         if ninfo.area <= math.pi * hole.radius**2 * 1.5:
                             hole.flat_bottom = True
                             return
+
+
+# ---------------------------------------------------------------------------
+# Threads (tapped-hole inference)
+# ---------------------------------------------------------------------------
+
+def detect_threads(holes: list[Hole]) -> list[Thread]:
+    """Infer tapped holes from already-detected bores.
+
+    Threads are seldom modeled as geometry (and shouldn't be — they belong on
+    the drawing as a callout), so we recognise the *tap drill*: a bore sitting
+    within `TAP_DRILL_TOL` of a standard metric tap-drill diameter is treated as
+    a threaded hole of the corresponding size.
+    """
+    threads: list[Thread] = []
+    for h in holes:
+        dia = 2.0 * h.radius
+        best: tuple[float, float, float] | None = None
+        for nominal, pitch, tap in METRIC_COARSE_THREADS:
+            if abs(dia - tap) <= TAP_DRILL_TOL:
+                if best is None or abs(dia - tap) < abs(dia - best[2]):
+                    best = (nominal, pitch, tap)
+        if best is None:
+            continue
+        nominal, pitch, tap = best
+        threads.append(Thread(
+            hole_face_indices=list(h.face_indices),
+            nominal_diameter=nominal,
+            pitch=pitch,
+            designation=f"M{nominal:g}×{pitch:g}",
+            tap_drill=tap,
+            thread_depth=float(h.depth),
+            through=bool(h.through),
+            blind=not bool(h.through),
+        ))
+    return threads
 
 
 # ---------------------------------------------------------------------------

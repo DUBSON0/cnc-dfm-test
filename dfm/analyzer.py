@@ -11,6 +11,7 @@ from dfm.features import (
     detect_narrow_gaps,
     detect_sharp_concave_edges,
     detect_thin_regions,
+    detect_threads,
     face_adjacency,
     faces_in_map_order,
 )
@@ -49,6 +50,7 @@ def analyze_shape(shape) -> tuple[AnalysisResult, PartMesh]:
     integrity_findings = check_integrity(integrity)
 
     holes, corners = detect_holes_and_corners(faces, infos, adjacency, caster)
+    threads = detect_threads(holes)
     thin = detect_thin_regions(caster, min_thickness=WARN_WALL_METAL)
     hole_faces = {fi for h in holes for fi in h.face_indices}
     gaps = detect_narrow_gaps(caster, exclude_faces=hole_faces)
@@ -57,7 +59,7 @@ def analyze_shape(shape) -> tuple[AnalysisResult, PartMesh]:
 
     findings = run_all_rules(
         corners, holes, thin, access, infos, integrity_findings,
-        narrow_gaps=gaps, sharp_edges=sharp_edges,
+        narrow_gaps=gaps, sharp_edges=sharp_edges, threads=threads,
     )
 
     from dfm.scoring import compute_score, rank_design_changes
@@ -74,6 +76,7 @@ def analyze_shape(shape) -> tuple[AnalysisResult, PartMesh]:
         if stock_volume > 0 else None,
         "num_faces": len(faces),
         "num_holes": len(holes),
+        "num_tapped_holes": len(threads),
         "num_internal_corners": len(corners),
         "num_bodies": integrity.num_bodies,
         "watertight": integrity.watertight,

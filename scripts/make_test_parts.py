@@ -150,6 +150,29 @@ def make_fiddly_widget() -> TopoDS_Shape:
     return body
 
 
+def make_threaded_plate() -> TopoDS_Shape:
+    """70x50x24 plate with tapped-hole candidates (bores at metric tap-drill
+    sizes) covering the thread DFM rules:
+
+    - M6 (Ø5.0) blind, 10 deep — well-proportioned tapped hole (recognized, OK)
+    - M3 (Ø2.5) blind, 6 deep — small/fragile thread
+    - M8 (Ø6.8) blind, 22 deep — excessive thread engagement (~2.75xD)
+    - Ø6.0 clearance through hole — NOT a tap drill, must not be read as threaded
+    """
+    body = BRepPrimAPI_MakeBox(gp_Pnt(0, 0, 0), 70.0, 50.0, 24.0).Shape()
+
+    # M6 tapped hole: Ø5.0 tap drill, 10 mm deep (origin poked 2 mm above top).
+    body = BRepAlgoAPI_Cut(body, cyl(18, 15, 14, gp_Dir(0, 0, 1), 2.5, 12.0)).Shape()
+    # M3 tapped hole: Ø2.5 tap drill, 6 mm deep — small thread.
+    body = BRepAlgoAPI_Cut(body, cyl(40, 15, 18, gp_Dir(0, 0, 1), 1.25, 8.0)).Shape()
+    # M8 tapped hole: Ø6.8 tap drill, 22 mm deep — excessive engagement.
+    body = BRepAlgoAPI_Cut(body, cyl(35, 38, 2, gp_Dir(0, 0, 1), 3.4, 24.0)).Shape()
+    # Plain Ø6 clearance through hole (control: not a tap drill).
+    body = BRepAlgoAPI_Cut(body, cyl(58, 38, -1, gp_Dir(0, 0, 1), 3.0, 26.0)).Shape()
+
+    return body
+
+
 def make_open_box() -> TopoDS_Shape:
     """Box with the top face deleted and the rest sewn into an open shell —
     simulates an unstitched / surface-only export."""
@@ -193,5 +216,6 @@ if __name__ == "__main__":
     write_step(make_bad_bracket(), "bad_bracket.step")
     write_step(make_good_plate(), "good_plate.step")
     write_step(make_fiddly_widget(), "fiddly_widget.step")
+    write_step(make_threaded_plate(), "threaded_plate.step")
     write_step(make_open_box(), "open_box.step")
     write_step(make_two_bodies(), "two_bodies.step")

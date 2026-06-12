@@ -19,7 +19,9 @@ corner radii. The pipeline:
    sphere / torus / freeform) with concavity determined from oriented normals.
 2. **Feature detection** — concave full-revolution cylinders become holes
    (through/blind, flat vs drill-point bottom); partial concave cylinders become
-   internal corner radii with depth measured along the axis.
+   internal corner radii with depth measured along the axis. Bores sitting on a
+   standard metric tap-drill diameter are inferred to be **tapped holes** and get
+   thread-specific checks (no STEP thread callout is needed).
 3. **Thin-wall detection** — inward ray casting from mesh samples measures local
    thickness.
 4. **Accessibility** — ray casting along the six axis directions determines which
@@ -59,6 +61,9 @@ uv pip install --python .venv/bin/python -r requirements.txt
 | Micro hole | diameter < 1.5 mm (critical < 0.8 mm) |
 | Non-standard hole size | no standard metric drill within 0.05 mm |
 | Flat-bottom blind hole | planar floor perpendicular to bore axis |
+| Tapped hole (inferred) | bore diameter matches a metric tap drill (±0.08 mm) |
+| Small thread | inferred thread ≤ M3 (critical ≤ M2) — fragile, snap-prone taps |
+| Excessive thread engagement | tapped depth > 2.5× thread diameter |
 | Thin wall / floor | local material thickness < 1.5 mm (critical < 0.8 mm) |
 | Narrow slot / channel | opposing walls < 2.6 mm apart (critical < 1.2 mm) |
 | Unreachable faces | not visible from any axis direction (undercuts) |
@@ -80,6 +85,7 @@ Clicking a change in the web UI highlights the affected faces on the model.
 ## Limitations / next steps
 
 - 3-axis logic only (no 3+2 tilted access directions yet)
-- No thread/PMI/tolerance awareness (STEP AP242 PMI would enable this)
+- Threads are *inferred* from tap-drill diameters, not read from callouts; true
+  thread class/depth and tolerance awareness would need STEP AP242 PMI
 - Heuristic scoring — calibrate weights against real quote data
 - Pocket recognition is corner-based; no full AFR (automatic feature recognition)
